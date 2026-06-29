@@ -16,6 +16,7 @@ interface WillState {
   person_age?: number;
   person_address?: string;
   sound_mind?: boolean;
+  has_minor_children?: boolean; 
   revocation_line?: string;
   assets: AssetState[];
   beneficiaries: BeneficiaryState[];
@@ -199,14 +200,14 @@ async handleMessage(willId: string, userId: string, userMessage: string) {
     this.logger.log('===== BUILD STATE =====');
     this.logger.log('executor_id: ' + will.executor_id);
     this.logger.log('executor relation:');
-    console.log(will.executor);
+    console.log(will);
     this.logger.log('beneficiaries count: ' + beneficiaries.length);
     const missing: string[] = [];
     if (!will.person_name) missing.push('person_name');
     if (!will.person_age) missing.push('person_age');
     if (!will.person_address) missing.push('person_address');
     if (will.sound_mind == null) missing.push('sound_mind');
-    // if (!will.executor_id) missing.push('executor');
+    if (!will.executor_id) missing.push('executor');
     this.logger.log('Missing fields:');
     console.log(missing);
     // Guardian required only if children under 18 – we'll handle later
@@ -216,6 +217,7 @@ async handleMessage(willId: string, userId: string, userMessage: string) {
 
     // Check share sums per asset
     for (const asset of assets) {
+      console.log(asset);
       const total = asset.shares.reduce((sum, s) => sum + s.percentage, 0);
       if (Math.abs(total - 100) > 0.01) {
         missing.push(`shares for '${asset.description}' do not sum to 100%`);
@@ -227,6 +229,7 @@ async handleMessage(willId: string, userId: string, userMessage: string) {
       person_age: will.person_age,
       person_address: will.person_address,
       sound_mind: will.sound_mind,
+      has_minor_children: will.has_minor_children, 
       revocation_line: will.revocation_line,
       assets,
       beneficiaries,
@@ -355,39 +358,36 @@ Now, begin by asking the first missing question (or responding to the user's lat
       await this.beneficiaryRepo.save(beneficiary);
       break;
     }
-case 'add_executor': {
+    case 'add_executor': {
   const executor = this.beneficiaryRepo.create({
     will,
-    will_id: will.id,
     full_name: update.full_name,
     relationship: 'executor',
     is_executor: true,
     type: 'executor',
-  });
+    });
+    await this.beneficiaryRepo.save(executor);
 
-  await this.beneficiaryRepo.save(executor);
+  // Directly update the will's FK column
+    await this.willRepo.update(will.id, { executor_id: executor.id });
+    break;
+  }
 
-  // Only update the FK
-  will.executor_id = executor.id;
+  case 'add_guardian': {
+    const guardian = this.beneficiaryRepo.create({
+      will,
+      full_name: update.full_name,
+      relationship: 'guardian',
+      is_guardian: true,
+      type: 'guardian',
+    });
+    await this.beneficiaryRepo.save(guardian);
+    console.log('Guardian savedssssssssssssssssssssssssssssssssssssssssssssss:', guardian);
 
-  await this.willRepo.save(will);
-
-  break;
-}
-
-case 'add_guardian': {
-  const guardian = this.beneficiaryRepo.create({
-    will: will,
-    full_name: update.full_name,
-    relationship: 'guardian',
-    is_guardian: true,
-    type: 'guardian',
-  });
-  await this.beneficiaryRepo.save(guardian);
-  will.guardian = guardian;
-  await this.willRepo.save(will);
-  break;
-}
+    // Direct FK update – foolproof
+    await this.willRepo.update(will.id, { guardian_id: guardian.id });
+    break;
+  }
 
     case 'add_witness': {
       const witness = this.beneficiaryRepo.create({
