@@ -1,0 +1,16 @@
+# Environment files (keep .env.example)
+.env
+config.env
+
+# Node
+node_modules/
+dist/
+.next/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
