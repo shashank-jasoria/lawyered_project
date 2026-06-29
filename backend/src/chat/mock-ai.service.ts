@@ -79,7 +79,7 @@ export class MockAiService {
       }
       const name = msg.replace(/^(make|appoint|my|the|executor|is|as)\s*/gi, '').trim() || 'Executor';
       return {
-        conversational_reply: `I've set ${name} as executor. Do you have children under 18? (yes/no)`,
+        conversational_reply: `I've set ${name} as executor. Write the name of your first witness`,
         updates: [{ action: 'add_executor', full_name: name }],
       };
     }

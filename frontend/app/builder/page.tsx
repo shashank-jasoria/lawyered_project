@@ -68,14 +68,45 @@ export default function BuilderPage() {
     setLoading(false);
   };
 
-  const downloadPDF = () => {
-    if (!willId) return;
-    window.open(`${process.env.NEXT_PUBLIC_API_URL}/wills/${willId}/document`, '_blank');
-  };
+  const downloadPDF = async () => {
+  if (!willId) return;
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/wills/${willId}/document`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      alert('Failed to download PDF');
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Will-${will.person_name || 'draft'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert('Error downloading PDF');
+  }
+};
 
   // Quick demo: load the pre‑seeded completed will
   const loadDemoWill = () => {
-    const demoId = 'w2000000-0000-0000-0000-000000000001';
+    console.log('Loading demo will...',will);
+    const demoId = will?.id  || 'w2000000-0000-0000-0000-000000000001';
     setWillId(demoId);
     fetchWill(demoId);
   };
@@ -100,7 +131,7 @@ export default function BuilderPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && sendMessage()}
-            placeholder="Type your answer..."
+            placeholder="Type your answer or start with 'Hi, I want to write a will.' "
             disabled={loading}
           />
           <button onClick={sendMessage} disabled={loading} style={{ padding: '0.5rem 1rem' }}>Send</button>
@@ -109,10 +140,10 @@ export default function BuilderPage() {
 
       {/* RIGHT: Preview & Status */}
       <div style={{ width: '50%', padding: '1rem', overflowY: 'auto' }}>
-        <h2>Will Preview</h2>
+        {/* <h2>Will Preview</h2> */}
         
         {/* Demo button (remove after testing) */}
-        <button onClick={loadDemoWill} style={{ marginBottom: '1rem' }}>Load Completed Demo Will</button>
+        {/* <button onClick={loadDemoWill} style={{ marginBottom: '1rem' }}>Load Completed Demo Will</button> */}
 
         {validation && (
           <div>
